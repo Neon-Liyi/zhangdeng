@@ -2412,7 +2412,12 @@ async function camOn() {
   $('#hintMode').textContent = '正在启动摄像头…';
   try {
     if (!HT.landmarker) await HT.init();      // 回首页会关掉相机；再进来时优先复用已加载的模型
-    await HT.camera();
+    try {
+      await HT.camera();
+    } catch (e1) {
+      await new Promise(r => setTimeout(r, 450));   // 刚放掉的设备可能要一拍才回得来：再试一次
+      await HT.camera();
+    }
     $('#hintMode').textContent = '';
     camT0 = 0; ckAutoDone = false;
     return true;
@@ -2436,7 +2441,9 @@ function goHome() {
   try { if (Rec.on) Rec.stop(); } catch (e) {}
   /* 相机要真停：不然浏览器摄像头灯一直亮着，再进也可能抢不到设备 */
   if (HT.video) {
-    try { if (HT.video.srcObject) HT.video.srcObject.getTracks().forEach(t => t.stop()); } catch (e) {}
+    const v = HT.video;
+    try { if (v.srcObject) v.srcObject.getTracks().forEach(t => t.stop()); } catch (e) {}
+    try { v.srcObject = null; v.pause(); } catch (e) {}   // 只 stop 不置空：元素还攥着设备，再开就拿不到（回首页→启灯会失败）
     HT.video = null;
   }
   HT.feed([], performance.now());

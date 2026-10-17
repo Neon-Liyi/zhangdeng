@@ -230,6 +230,9 @@ export class HandTracker {
   }
 
   async camera() {
+    /* 已经有活着的流就直接用：回首页/重进时不必再要一次设备 */
+    const cur = this.video;
+    if (cur && cur.srcObject && cur.srcObject.getTracks().some(t => t.readyState === 'live')) return cur;
     const st = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 960 }, height: { ideal: 540 }, facingMode: 'user' }, audio: false
     });
