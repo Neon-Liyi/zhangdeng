@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0704">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0704'/%3E%3Ccircle cx='16' cy='15' r='8' fill='%23f0b95e'/%3E%3Crect x='14' y='21' width='4' height='7' fill='%23e8c07a'/%3E%3C/svg%3E">
+<title>掌灯 · 手势皮影戏</title>
+<style>
+  :root{ --ink:#0a0704; --gold:#e8c07a; --cin:#b8352a; --paper:#f6e6c4; }
+  *{box-sizing:border-box;margin:0;padding:0; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:var(--ink);overflow:hidden}
+  body{
+    font-family:system-ui,"Microsoft YaHei","PingFang SC",sans-serif;
+    color:#f0e2c4; -webkit-font-smoothing:antialiased; user-select:none;
+    position:fixed; inset:0;
+  }
+  #stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+  /* ---------- 右上控制条 ---------- */
+  #hud{
+    position:fixed;top:0;right:0;z-index:20;
+    display:flex;gap:6px;padding:12px 14px;align-items:center;
+  }
+  #plays li.locked{opacity:.55}  #plays li.locked b{color:rgba(232,192,122,.55)}
+  #veil .pick .lk{font-style:normal;font-size:10px;opacity:.6;margin-left:4px}
+  #plays .moves{display:flex;flex-wrap:wrap;gap:5px}
+  #plays .moves i{font-style:normal;font-size:11px;padding:3px 7px;border-radius:2px;
+    border:1px solid rgba(232,192,122,.20);color:rgba(232,192,122,.44);transition:.18s}
+  #plays .moves i.on{border-color:rgba(150,240,180,.88);color:#0f2417;background:rgba(150,240,180,.88)}
+  /* ---------- 侧边步骤栏（引导模式）---------- */
+  #steps{
+    position:fixed;z-index:26;right:14px;top:64px;width:236px;max-height:calc(100vh - 84px);
+    display:flex;flex-direction:column;gap:8px;overflow:auto;
+    padding:14px 14px 12px;border-radius:3px;
+    background:linear-gradient(180deg,rgba(24,14,6,.92),rgba(10,6,3,.94));
+    border:1px solid rgba(232,192,122,.30);box-shadow:0 14px 44px rgba(0,0,0,.55);
+    backdrop-filter:blur(4px);transition:.22s;
+  }
+  body.free #steps{opacity:0;visibility:hidden;transform:translateX(14px)}
+  #steps .hd{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:12.5px;letter-spacing:.14em;color:var(--gold);border-bottom:1px solid rgba(232,192,122,.20);padding-bottom:7px}
+  #steps .hd b{font-family:"STKaiti","KaiTi",serif;font-size:15px;letter-spacing:.20em}
+  #steps .hd span{font-size:11.5px;opacity:.66}
+  #steps .hand{display:flex;align-items:center;gap:10px}
+  #stepsHand{width:96px;height:96px;flex:0 0 auto;border-radius:3px;
+    background:radial-gradient(circle at 50% 42%,rgba(232,192,122,.14),rgba(232,192,122,.03) 70%);
+    border:1px solid rgba(232,192,122,.22)}
+  #steps .hand.on #stepsHand{border-color:rgba(150,240,180,.8);box-shadow:0 0 0 1px rgba(150,240,180,.35) inset}
+  #steps .now{display:flex;flex-direction:column;gap:4px;min-width:0}
+  #steps .now i{font-style:normal;font-size:14.5px;color:#ffeecb;letter-spacing:.06em}
+  #steps .now em{font-style:normal;font-size:11.5px;color:rgba(246,230,196,.62)}
+  #steps .now s{text-decoration:none;font-size:11.5px;color:rgba(150,240,180,.9)}
+  #steps ol{list-style:none;margin:2px 0 0;display:flex;flex-direction:column;gap:3px;counter-reset:st}
+  #steps li{font-size:12px;color:rgba(246,230,196,.44);padding:4px 6px;border-radius:2px;
+    display:flex;gap:7px;align-items:baseline;border-left:2px solid transparent}
+  #steps li::before{counter-increment:st;content:counter(st,decimal-leading-zero);font-size:10px;opacity:.5}
+  #steps li.done{color:rgba(246,230,196,.32)}
+  #steps li.done::after{content:"✓";margin-left:auto;color:rgba(150,240,180,.75);font-size:11px}
+  #steps li.now{color:#ffeecb;background:rgba(232,192,122,.12);border-left-color:var(--gold)}
+  #steps .ft{font-size:10.5px;color:rgba(246,230,196,.34);line-height:1.7;border-top:1px solid rgba(232,192,122,.14);padding-top:7px}
+  @media (max-width:1500px){
+    /* 屏幕不够宽就把步骤栏改成底部横条——别去盖中间的幕布演出 */
+    #steps{right:8px;left:8px;width:auto;top:auto;bottom:8px;max-height:30vh;padding:10px 12px 8px;
+      flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:6px 14px}
+    #steps .hd{flex:0 0 100%;border-bottom:none;padding-bottom:2px}
+    #stepsHand{width:62px;height:62px}
+    #steps ol{flex:1 1 auto;flex-direction:row;flex-wrap:wrap;margin:0}
+    #steps li{padding:2px 5px}
+    #steps .ft{display:none}
+  }
+  /* ---------- 手势自检（把"认不出来"变成看得见的事） ---------- */
+  #check{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:70;
+    width:min(580px,93vw);max-height:88vh;overflow:auto;display:none;flex-direction:column;gap:8px;
+    background:linear-gradient(180deg,rgba(17,13,11,.975),rgba(9,7,6,.99));
+    border:1px solid rgba(232,192,122,.32);border-radius:13px;padding:18px 20px 15px;
+    box-shadow:0 18px 60px rgba(0,0,0,.68);backdrop-filter:blur(3px);
+    font-size:13.5px;line-height:1.7;color:rgba(246,230,196,.86)}
+  #check.show{display:flex}
+  #check h2{margin:0;font-size:17px;letter-spacing:.12em;color:var(--gold);font-weight:600}
+  #check .sub2{font-size:11.5px;color:rgba(246,230,196,.44);margin:-2px 0 4px}
+  #check .row2{display:flex;gap:10px;align-items:baseline;padding:7px 11px;border-radius:8px;
+    background:rgba(232,192,122,.05);border:1px solid rgba(232,192,122,.10)}
+  #check .row2 b{flex:0 0 84px;font-weight:600;color:rgba(255,238,203,.92)}
+  #check .row2 span{flex:1 1 auto;color:rgba(246,230,196,.80)}
+  #check .dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.15);align-self:center}
+  #check .dot.on{background:#7ee6a0;box-shadow:0 0 10px rgba(126,230,160,.75)}
+  #check .dot.warn{background:#ffd27a;box-shadow:0 0 10px rgba(255,210,122,.7)}
+  #check .dot.bad{background:#ff8f7a;box-shadow:0 0 10px rgba(255,143,122,.7)}
+  #check ol{margin:3px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px}
+  #check li{display:flex;gap:9px;align-items:baseline;padding:5px 11px;border-radius:7px;background:rgba(255,255,255,.025)}
+  #check li .nm{flex:0 0 66px;color:rgba(255,238,203,.9)}
+  #check li .how{flex:1 1 auto;color:rgba(246,230,196,.58);font-size:12.5px}
+  #check .tip{padding:10px 12px;border-radius:8px;background:rgba(232,192,122,.09);
+    border:1px solid rgba(232,192,122,.22);color:#ffe9c2}
+  #check .btns{display:flex;gap:9px;margin-top:3px;flex-wrap:wrap}
+  #check button{font-family:inherit;font-size:13px;letter-spacing:.05em;padding:8px 15px;border-radius:7px;cursor:pointer;
+    background:transparent;color:rgba(246,230,196,.82);border:1px solid rgba(232,192,122,.34);transition:.18s}
+  #check button:hover{background:rgba(232,192,122,.13);color:var(--gold)}
+  #check #ckGo{border-color:rgba(232,192,122,.62);color:var(--gold)}
+  /* ---------- 键鼠一览（没有摄像头也能整出戏） ---------- */
+  #keys{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:72;
+    width:min(880px,94vw);max-height:88vh;overflow:auto;display:none;flex-direction:column;gap:9px;
+    background:linear-gradient(180deg,rgba(17,13,11,.975),rgba(9,7,6,.99));
+    border:1px solid rgba(232,192,122,.32);border-radius:13px;padding:18px 20px 15px;
+    box-shadow:0 18px 60px rgba(0,0,0,.68);backdrop-filter:blur(3px);
+    font-size:13px;line-height:1.62;color:rgba(246,230,196,.86)}
+  #keys.show{display:flex}
+  #keys h2{margin:0;font-size:17px;letter-spacing:.12em;color:var(--gold);font-weight:600}
+  #keys .sub2{font-size:11.5px;color:rgba(246,230,196,.44);margin:-2px 0 3px}
+  #keys .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  #keys section{display:flex;flex-direction:column;gap:4px}
+  #keys section>b{font-size:11.5px;letter-spacing:.16em;color:rgba(232,192,122,.7);margin:1px 0 0}
+  #keys .row2{display:flex;gap:8px;align-items:baseline;padding:5px 9px;border-radius:8px;
+    background:rgba(232,192,122,.05);border:1px solid rgba(232,192,122,.10)}
+  #keys .row2 b{flex:0 0 40px;font-weight:600;color:rgba(255,238,203,.92);font-size:12.4px}
+  #keys .row2 span{flex:1 1 auto;color:rgba(246,230,196,.78);font-size:12.2px}
+  #keys kbd{font-family:inherit;font-size:11.2px;padding:0 5px;margin:0 1px;border-radius:4px;
+    background:rgba(232,192,122,.14);border:1px solid rgba(232,192,122,.3);color:#ffe9c2;white-space:nowrap}
+  #keys .ft{font-size:11.5px;color:rgba(246,230,196,.5)}
+  #keys button{align-self:flex-start;font-family:inherit;font-size:13px;letter-spacing:.05em;
+    padding:7px 16px;border-radius:7px;cursor:pointer;background:transparent;
+    color:rgba(246,230,196,.82);border:1px solid rgba(232,192,122,.34);transition:.18s}
+  #keys button:hover{background:rgba(232,192,122,.13);color:var(--gold)}
+  @media (max-width:760px){#keys .cols{grid-template-columns:1fr}}
+  #hud button{
+    font-family:inherit;font-size:12.5px;letter-spacing:.06em;
+    padding:7px 12px;border-radius:2px;cursor:pointer;transition:.2s;
+    background:rgba(22,13,6,.55);border:1px solid rgba(232,192,122,.28);
+    color:rgba(232,192,122,.82);backdrop-filter:blur(6px);
+  }
+  #hud button:hover{border-color:rgba(232,192,122,.62);color:var(--gold);background:rgba(22,13,6,.8)}
+  #hud button b{font-weight:600;color:var(--gold)}
+  #btnRec.on{border-color:rgba(200,60,50,.9);color:#ff8b7a;background:rgba(60,14,10,.8)}
+  #btnMusic.on{border-color:rgba(232,192,122,.95);color:#1a1108;background:rgba(232,192,122,.86)}
+  #btnMusic.on b{color:#3a2408}
+  #btnRec.on i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e34734;
+    margin-right:6px;vertical-align:1px;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:.25}}
+  @media (max-width:720px){
+    #hud{padding:8px 10px;gap:5px}
+    #hud button{font-size:11.5px;padding:6px 9px}
+    #btnFull{display:none}
+  }
+
+  /* ---------- 开场幕 ---------- */
+  #veil{
+    position:fixed;inset:0;z-index:30;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 46%,#1a1108 0%,#0a0704 62%);
+    transition:opacity .9s ease,visibility .9s;
+    padding:24px;overflow-y:auto;
+  }
+  #veil.gone{opacity:0;visibility:hidden;pointer-events:none}
+  #veil .lamp{
+    width:clamp(74px,11vh,132px);height:clamp(74px,11vh,132px);border-radius:50%;
+    background:radial-gradient(circle at 50% 42%,#ffe9b8 0%,#f0b95e 32%,rgba(214,150,80,.20) 62%,transparent 74%);
+    margin-bottom:clamp(16px,3.4vh,34px);
+    animation:breathe 3.4s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{transform:scale(1);opacity:.86;filter:blur(.4px) brightness(1)}
+    50%{transform:scale(1.07);opacity:1;filter:blur(.4px) brightness(1.16)}
+  }
+  #veil h1{
+    font-family:"STKaiti","KaiTi",serif;font-weight:600;color:var(--gold);
+    font-size:clamp(38px,8.5vh,60px);letter-spacing:.36em;text-indent:.36em;
+    text-shadow:0 0 28px rgba(232,192,122,.34);
+  }
+  #veil .sub{
+    margin-top:clamp(8px,1.6vh,14px);font-size:clamp(10px,1.5vh,13px);
+    letter-spacing:.62em;text-indent:.62em;color:rgba(232,192,122,.50);
+  }
+  #veil .rule{width:210px;max-width:60vw;height:1px;margin:clamp(16px,3vh,30px) 0 clamp(14px,2.6vh,26px);
+    background:linear-gradient(90deg,transparent,rgba(232,192,122,.55),transparent)}
+  #veil p.lead{
+    max-width:min(520px,88vw);text-align:center;font-family:"STKaiti","KaiTi",serif;
+    font-size:clamp(13px,1.85vh,17px);line-height:2.05;color:rgba(246,230,196,.70);
+  }
+  #veil .row{display:flex;gap:12px;margin-top:clamp(18px,3.6vh,38px);flex-wrap:wrap;justify-content:center}
+  #veil button{
+    font-family:inherit;font-size:clamp(13px,1.7vh,15px);padding:13px 30px;border-radius:2px;cursor:pointer;
+    background:transparent;transition:.22s;letter-spacing:.12em;
+  }
+  #btnStart{border:1px solid rgba(232,192,122,.62);color:var(--gold)}
+  #btnStart:hover{background:rgba(232,192,122,.12);box-shadow:0 0 22px rgba(232,192,122,.18)}
+  .ghost{border:1px solid rgba(232,192,122,.20);color:rgba(232,192,122,.52)}
+  .ghost:hover{border-color:rgba(232,192,122,.45);color:rgba(232,192,122,.82)}
+  #veil .foot{
+    margin-top:clamp(16px,3vh,32px);text-align:center;max-width:92vw;
+    font-size:clamp(10px,1.35vh,11.5px);letter-spacing:.18em;line-height:2.1;
+    color:rgba(232,192,122,.28);
+  }
+  #hintMode{
+    position:fixed;left:0;right:0;bottom:10px;text-align:center;z-index:31;
+    font-size:12px;color:rgba(232,192,122,.55);letter-spacing:.08em;pointer-events:none;
+  }
+  /* ---------- 菜单统一的右上角 ✕ ---------- */
+  .panelx{position:absolute;top:8px;right:10px;z-index:3;width:26px;height:26px;padding:0;
+    line-height:1;font-family:inherit;font-size:13px;border-radius:6px;cursor:pointer;
+    background:transparent;color:rgba(246,230,196,.45);border:1px solid rgba(232,192,122,.22);transition:.16s}
+  .panelx:hover{color:var(--gold);border-color:rgba(232,192,122,.6);background:rgba(232,192,122,.12)}
+  /* ---------- 影布两旁的键鼠提示（可关；跟着幕布的边站） ---------- */
+  #hintL,#hintR{position:fixed;z-index:25;top:0;display:none;flex-direction:column;gap:4px;
+    padding:9px 10px 8px;border-radius:3px;pointer-events:none;
+    background:linear-gradient(180deg,rgba(20,12,6,.66),rgba(8,5,3,.74));
+    border:1px solid rgba(232,192,122,.16);backdrop-filter:blur(3px);
+    font-size:11.5px;line-height:1.42;color:rgba(246,230,196,.7);
+    box-shadow:0 10px 30px rgba(0,0,0,.3)}
+  #hintL.on,#hintR.on{display:flex}
+  #hintL .hd,#hintR .hd{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:10.5px;letter-spacing:.18em;color:rgba(232,192,122,.55);margin-bottom:2px}
+  #hintL .hd i,#hintR .hd i{cursor:pointer;pointer-events:auto;font-style:normal;
+    font-size:12px;line-height:1;color:rgba(246,230,196,.35);padding:1px 3px}
+  #hintL .hd i:hover,#hintR .hd i:hover{color:var(--gold)}
+  #hintL .r,#hintR .r{display:flex;justify-content:space-between;gap:7px;align-items:baseline}
+  #hintL .r b,#hintR .r b{font-weight:600;color:rgba(255,238,203,.8);font-size:11.3px;white-space:nowrap}
+  #hintL .r span,#hintR .r span{color:rgba(246,230,196,.58);text-align:right;white-space:nowrap}
+  #hintL kbd,#hintR kbd{font-family:inherit;font-size:10.3px;padding:0 4px;margin:0 1px;border-radius:3px;
+    background:rgba(232,192,122,.11);border:1px solid rgba(232,192,122,.24);color:#ffe9c2}
+  /* 摄像头模式：提示卡照常显示，但"走影/捏合/攥拳/对戏"改说手势话（鼠标和左右键在那时不动手） */
+  #hintL .c,#hintR .c{display:none}
+  body.cam #hintL .m,body.cam #hintR .m{display:none}
+  body.cam #hintL .c,body.cam #hintR .c{display:inline}
+  body.cam #hintL [data-only="man"],body.cam #hintR [data-only="man"]{display:none}
+  @media (max-width:900px){#hintL,#hintR{display:none!important}}
+  /* 键鼠一览里的开关行 */
+  #keysHintToggle{align-self:flex-start;margin-top:1px;font-family:inherit;font-size:12px;
+    letter-spacing:.04em;padding:6px 13px;border-radius:6px;cursor:pointer;background:transparent;
+    color:rgba(246,230,196,.78);border:1px dashed rgba(232,192,122,.35);transition:.18s}
+  #keysHintToggle:hover{background:rgba(232,192,122,.12);color:var(--gold)}
+
+  /* ---------- 开场幕 · 戏折子 ---------- */
+  #veil .pick{
+    display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;
+    margin-top:clamp(14px,2.6vh,26px);
+  }
+  #veil .pick .plabel{
+    font-size:clamp(10px,1.4vh,12px);letter-spacing:.42em;text-indent:.42em;
+    color:rgba(232,192,122,.42);margin-right:4px;
+  }
+  #veil .pick button{
+    font-family:inherit;font-size:clamp(11.5px,1.5vh,13.5px);padding:7px 16px;border-radius:2px;
+    background:transparent;border:1px solid rgba(232,192,122,.22);color:rgba(232,192,122,.60);
+    cursor:pointer;transition:.2s;letter-spacing:.10em;
+  }
+  #veil .pick button:hover{border-color:rgba(232,192,122,.55);color:var(--gold)}
+  #veil .pick button.on{
+    border-color:rgba(232,192,122,.92);color:#1a1108;background:rgba(232,192,122,.86);
+    box-shadow:0 0 18px rgba(232,192,122,.22);
+  }
+
+  /* ---------- 戏折子面板（演出中换戏） ---------- */
+  #plays{
+    position:fixed;z-index:32;left:50%;top:50%;transform:translate(-50%,-50%) scale(.98);
+    width:min(560px,92vw);max-height:86vh;overflow:auto;
+    background:linear-gradient(180deg,rgba(28,17,8,.97),rgba(12,7,4,.98));
+    border:1px solid rgba(232,192,122,.34);border-radius:3px;
+    box-shadow:0 24px 80px rgba(0,0,0,.7);
+    padding:22px 22px 18px;opacity:0;visibility:hidden;transition:.24s;
+  }
+  #plays.show{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+  #plays h3{font-family:"STKaiti","KaiTi",serif;font-size:19px;color:var(--gold);letter-spacing:.22em;font-weight:600}
+  #plays p{font-size:12px;color:rgba(246,230,196,.52);margin-top:8px;line-height:1.9}
+  #plays ul{list-style:none;margin-top:16px;display:flex;flex-direction:column;gap:9px}
+  #plays li{
+    border:1px solid rgba(232,192,122,.18);border-radius:2px;padding:11px 13px;cursor:pointer;transition:.18s;
+    display:grid;grid-template-columns:auto auto 1fr;gap:4px 10px;align-items:baseline;
+  }
+  #plays li:hover{border-color:rgba(232,192,122,.5);background:rgba(232,192,122,.06)}
+  #plays li.on{border-color:rgba(232,192,122,.86);background:rgba(232,192,122,.10)}
+  #plays li b{font-family:"STKaiti","KaiTi",serif;font-size:16px;color:rgba(255,236,196,.94);letter-spacing:.08em}
+  #plays li span{font-size:11px;color:rgba(232,192,122,.62)}
+  #plays li i.done{font-style:normal;font-size:11px;color:rgba(184,53,42,.94);text-align:right}
+  #plays li em{grid-column:1/4;font-style:normal;font-size:12px;line-height:1.85;color:rgba(246,230,196,.56)}
+  #plays .close{
+    margin-top:16px;width:100%;font-family:inherit;font-size:12.5px;padding:9px;border-radius:2px;cursor:pointer;
+    background:transparent;border:1px solid rgba(232,192,122,.28);color:rgba(232,192,122,.72);letter-spacing:.14em;
+  }
+  #hud button#btnTwo.on,#hud button#btnBeat.on{border-color:rgba(232,192,122,.9);color:#1a1108;background:rgba(232,192,122,.86)}
+  #plays .rows{margin-top:16px;display:flex;flex-direction:column;gap:10px;border-top:1px solid rgba(232,192,122,.16);padding-top:14px}
+  #plays .row2{display:flex;gap:10px;align-items:flex-start}
+  #plays .rl{flex:0 0 34px;font-family:"STKaiti","KaiTi",serif;font-size:14px;color:rgba(232,192,122,.72);letter-spacing:.10em;padding-top:5px}
+  #plays .chips{display:flex;flex-wrap:wrap;gap:6px}
+  #plays .chips button{
+    font-family:inherit;font-size:12px;padding:5px 11px;border-radius:2px;cursor:pointer;transition:.18s;
+    background:transparent;border:1px solid rgba(232,192,122,.22);color:rgba(232,192,122,.62);letter-spacing:.06em;
+  }
+  #plays .chips button:hover{border-color:rgba(232,192,122,.5);color:var(--gold)}
+  #plays .chips button.on{border-color:rgba(232,192,122,.9);color:#1a1108;background:rgba(232,192,122,.86)}
+  #plays .hintk{margin-top:12px;font-size:11.5px;line-height:2;color:rgba(246,230,196,.42)}
+  #plays .hintk b{color:rgba(232,192,122,.8);font-weight:600}
+  #veil .ver{
+    margin-top:clamp(10px,2vh,18px);font-size:clamp(9.5px,1.25vh,11px);letter-spacing:.16em;
+    color:rgba(232,192,122,.34);
+  }
+  #veil .ver b{color:rgba(232,192,122,.62);font-weight:600}
+  /* ---------- 新手模式 / 闯关：面板与入口 ---------- */
+  #veilNovice{
+    border:1px solid rgba(232,192,122,.80);color:#1a1108;background:rgba(232,192,122,.82);
+    box-shadow:0 0 26px rgba(232,192,122,.24);font-weight:600;
+  }
+  #veilNovice:hover{background:rgba(255,214,140,.95);box-shadow:0 0 34px rgba(232,192,122,.34)}
+  /* 关内把侧边步骤栏收起来：闯关走的是自由模式的判定，不给提示（不改成自由模式，两模式照旧） */
+  body.lv #steps{opacity:0;visibility:hidden;transform:translateX(14px)}
+  /* 闯关面板：沿用戏折子的深底 / 金线 / 楷体标题 */
+  #levels{
+    position:fixed;z-index:32;left:50%;top:50%;transform:translate(-50%,-50%) scale(.98);
+    width:min(640px,94vw);max-height:88vh;overflow:auto;
+    background:linear-gradient(180deg,rgba(28,17,8,.97),rgba(12,7,4,.98));
+    border:1px solid rgba(232,192,122,.34);border-radius:3px;
+    box-shadow:0 24px 80px rgba(0,0,0,.7);
+    padding:22px 22px 18px;opacity:0;visibility:hidden;transition:.24s;
+  }
+  #levels.show{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+  #levels h3{font-family:"STKaiti","KaiTi",serif;font-size:19px;color:var(--gold);letter-spacing:.22em;font-weight:600}
+  #levels p{font-size:12px;color:rgba(246,230,196,.52);margin-top:8px;line-height:1.9}
+  #levels ul{list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:8px}
+  #levels li{border:1px solid rgba(232,192,122,.18);border-radius:2px;padding:10px 12px;cursor:pointer;transition:.18s;
+    display:grid;grid-template-columns:auto 1fr auto;gap:3px 10px;align-items:baseline}
+  #levels li:hover{border-color:rgba(232,192,122,.5);background:rgba(232,192,122,.06)}
+  #levels li.locked{opacity:.5;cursor:not-allowed}
+  #levels li b{font-family:"STKaiti","KaiTi",serif;font-size:15.5px;color:rgba(255,236,196,.94);letter-spacing:.08em}
+  #levels li i.no{font-style:normal;font-size:11px;color:rgba(232,192,122,.5)}
+  #levels li em{grid-column:1/4;font-style:normal;font-size:12px;line-height:1.8;color:rgba(246,230,196,.56)}
+  #levels li s{text-decoration:none;font-size:12px;color:rgba(184,53,42,.95)}
+  #levels .hintk{margin-top:12px;font-size:11.5px;line-height:1.9;color:rgba(246,230,196,.42)}
+  #levels .close{
+    margin-top:16px;width:100%;font-family:inherit;font-size:12.5px;padding:9px;border-radius:2px;cursor:pointer;
+    background:transparent;border:1px solid rgba(232,192,122,.28);color:rgba(232,192,122,.72);letter-spacing:.14em;
+  }
+  /* 过关：落印之后给的两个去处 */
+  #lvNext{position:fixed;z-index:33;left:50%;bottom:26px;transform:translateX(-50%);display:none;gap:10px}
+  #lvNext.show{display:flex}
+  #lvNext button{font-family:inherit;font-size:14px;letter-spacing:.10em;padding:11px 26px;border-radius:2px;cursor:pointer;
+    background:rgba(24,14,6,.92);border:1px solid rgba(232,192,122,.62);color:var(--gold);transition:.2s}
+  #lvNext button:hover{background:rgba(232,192,122,.16)}
+</style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div id="hud">
+    <button id="btnPlay">戏折子 <b>0/3</b></button>
+    <button id="btnLv">闯关 <b>十二关</b></button>
+    <button id="btnNovice">新手 <b>教学</b></button>
+    <button id="btnMode">引导模式 <b>Tab</b></button>
+    <button id="btnCheck2">自检</button>
+    <button id="btnKeys">键鼠 <b>?</b></button>
+    <button id="btnTwo">两签 <b>F</b></button>
+    <button id="btnBeat">点板 <b>B</b></button>
+    <button id="btnMusic">文场 ♪ <b>M</b></button>
+    <button id="btnZhi">皮影志 <b>0/8</b></button>
+    <button id="btnRec">● 录制</button>
+    <button id="btnFull" title="全屏">⛶</button>
+  </div>
+  <div id="hintMode"></div>
+
+  <aside id="hintL">
+    <div class="hd"><span>做 手 势</span><i data-kh-off="1" title="隐藏提示">✕</i></div>
+    <div class="r"><b>走影</b><span class="m">鼠标 · <kbd>↑↓←→</kbd></span><span class="c">手 · 对着镜头</span></div>
+    <div class="r"><b>捏合</b><span class="m"><kbd>左键</kbd>/<kbd>E</kbd></span><span class="c">手捏合 · <kbd>E</kbd></span></div>
+    <div class="r"><b>攥拳</b><span class="m"><kbd>右键</kbd>/<kbd>Q</kbd></span><span class="c">攥拳 · <kbd>Q</kbd></span></div>
+    <div class="r"><b>对戏</b><span class="m"><kbd>中键</kbd>/<kbd>G</kbd></span><span class="c">两手靠近 · <kbd>G</kbd></span></div>
+    <div class="r"><b>横扫</b><span>快甩 · <kbd>R</kbd></span></div>
+    <div class="r"><b>上挑</b><span><kbd>I</kbd></span></div>
+    <div class="r"><b>下砸</b><span><kbd>K</kbd></span></div>
+    <div class="r"><b>翻手</b><span><kbd>X</kbd></span></div>
+    <div class="r"><b>翻身</b><span><kbd>J</kbd></span></div>
+  </aside>
+
+  <aside id="hintR">
+    <div class="hd"><span>演 戏 · 台 面</span><i data-kh-off="1" title="隐藏提示">✕</i></div>
+    <div class="r"><b>起灯</b><span><kbd>空格</kbd></span></div>
+    <div class="r"><b>两签</b><span class="m"><kbd>F</kbd> 提放 <kbd>U</kbd><kbd>O</kbd></span><span class="c"><kbd>F</kbd></span></div>
+    <div class="r" data-only="man"><b>加人</b><span><kbd>T</kbd></span></div>
+    <div class="r"><b>行当</b><span><kbd>1</kbd>–<kbd>4</kbd></span></div>
+    <div class="r"><b>再演</b><span><kbd>Y</kbd></span></div>
+    <div class="r"><b>文场</b><span><kbd>M</kbd></span></div>
+    <div class="r"><b>点板</b><span><kbd>B</kbd></span></div>
+    <div class="r"><b>手感</b><span><kbd>V</kbd></span></div>
+    <div class="r"><b>换装</b><span><kbd>H</kbd><kbd>P</kbd><kbd>N</kbd></span></div>
+    <div class="r"><b>收手</b><span><kbd>Esc</kbd></span></div>
+  </aside>
+
+  <aside id="steps">
+    <div class="hd"><b>当前步骤</b><span id="stepsCount">—</span></div>
+    <div class="hand" id="stepHandBox">
+      <canvas id="stepsHand" width="192" height="192"></canvas>
+      <div class="now">
+        <i id="stepNow">把手伸向灯</i>
+        <em id="stepNeed">张掌</em>
+        <s id="stepOk" hidden>✓ 认到了</s>
+      </div>
+    </div>
+    <ol id="stepList"></ol>
+    <div class="ft">做对了自动打勾；卡住超过 5 秒会放宽成"随便来一下"。<br>不想被提示就按 Tab 切到「自由模式」。</div>
+  </aside>
+
+  <div id="plays">
+    <button class="panelx" data-x-close="1" title="关闭（点空白、按任意键也能关）">✕</button>
+    <h3>戏 折 子</h3>
+    <p>点一出，影人按台本走——每一幕都在等你的一个手势；不点戏就自由演。</p>
+    <ul></ul>
+    <div class="rows">
+      <div class="row2"><span class="rl">头茬</span><div class="chips" id="chipsHead"></div></div>
+      <div class="row2"><span class="rl">皮料</span><div class="chips" id="chipsSkin"></div></div>
+      <div class="row2"><span class="rl">流派</span><div class="chips" id="chipsSchool"></div></div>
+      <div class="row2"><span class="rl">手感</span><div class="chips" id="chipsFeel"></div></div>
+      <div class="row2"><span class="rl">招式</span><div class="moves" id="moves"></div></div>
+      <div class="row2"><span class="rl">玩法</span><div class="chips">
+        <button id="chipTwo">两只手 · 共操一只影人</button>
+        <button id="chipBeat">点板 · 七紧八慢九消停</button>
+        <button id="chipAgain">再演一遍（Y）</button>
+      </div></div>
+    </div>
+    <div class="hintk">
+      键鼠：<b>走影</b> 鼠标/方向键 · <b>捏</b> 左键/E · <b>拳</b> 右键/Q · <b>对戏</b> 中键/G ·
+      <b>挑</b> I · <b>砸</b> K · <b>翻</b> X · <b>挥</b> R · <b>J</b> 翻身 · <b>F</b> 两签 · <b>B</b> 点板 ·
+      <b>H/P/N</b> 换头/皮/流派 · <b>1-4</b> 行当 · <b>?</b> 全部键位 · <b>Z</b> 皮影志
+    </div>
+    <button class="close" id="playsClose">合 上</button>
+  </div>
+
+  <div id="levels">
+    <button class="panelx" data-x-close="1" title="关闭（点空白、按任意键也能关）">✕</button>
+    <h3>闯 关 · 十 二 关</h3>
+    <p>从「一签定身」到「满台彩」：关名与释义都是皮影行话，由易到难。每关有时限——0 帮衬评「上」，1 次评「中」，两次以上或超时评「下」（超时也算过，不卡人）。过一关开下一关，成绩可以重打，只留最好的那一次。</p>
+    <ul></ul>
+    <div class="hintk">使的就是台上那几手：张掌 / 捏合 / 攥拳 / 翻手 / 横扫 / 下砸 / 上挑 / 两手靠近。<br>第 10 关自动开「两签共操」、第 11 关自动起「点板」、第 12 关要四个人影同台。</div>
+    <button class="close" id="levelsClose">合 上</button>
+  </div>
+
+  <div id="lvNext">
+    <button id="lvNextBtn">下一关</button>
+    <button id="lvCloseBtn">收灯 · 回台口</button>
+  </div>
+
+  <div id="veil">
+    <div class="lamp"></div>
+    <h1>掌灯</h1>
+    <div class="sub">手 势 皮 影 戏</div>
+    <div class="rule"></div>
+    <p class="lead">
+      皮影艺人的本事长在手上——三根签、七紧八慢九消停，<br>
+      这些知识从不写在纸上。<br>
+      今夜，那根签子交给你。
+    </p>
+    <div class="row">
+      <button id="veilNovice">新手 · 先学四手</button>
+      <button id="btnStart">启 灯 · 开摄像头</button>
+      <button id="btnManual" class="ghost">键盘 · 鼠标操作</button>
+      <button id="btnCheck" class="ghost">手势太难用 · 先自检</button>
+      <button id="btnDemo" class="ghost">无摄像头 · 看演示</button>
+    </div>
+    <div class="pick">
+      <span class="plabel">戏折子</span>
+      <button data-play="">自由演</button>
+      <button data-play="daohui">刀会</button>
+      <button data-play="shizhuo">拾镯</button>
+      <button data-play="modao">磨刀</button>
+      <button data-play="xuexi">拜师</button>
+      <button data-play="daxi">灯影还魂 <i class="lk">未开箱</i></button>
+    </div>
+    <div class="foot">手怎么动 · 影人怎么动<br>平移＝走影 · 上挑＝腾起 · 下砸＝踢腿 · 横扫＝换势 · 捏合＝挑签 · 攥拳＝定住 · <b>翻手＝换人</b> · 两手靠近＝对戏 · 手出画＝收灯</div>
+    <div class="ver">2026-10-15 版 · <b>手势自检（右上角「自检」）</b> · 越做不出来越自动放宽 · 引导 / 自由（Tab）/ 新手教学 / 十二关闯关· 侧边步骤栏 · 手感三档（V）· 评价 / 大戏</div>
+  </div>
+
+  <!-- 手势自检：摄像头画面既不上传、也不显示，只把"认没认出你的手"翻成数字 -->
+  <div id="check">
+    <button class="panelx" data-x-close="1" title="关闭（点空白、按任意键也能关）">✕</button>
+    <h2>手 势 自 检</h2>
+    <div class="sub2">摄像头画面不上传、也不会显示在屏幕上——这里只告诉你"手被认出来了没有"。</div>
+    <div class="row2"><b>① 摄像头</b><span id="ckCam">未启动</span><i class="dot" id="ckCamDot"></i></div>
+    <div class="row2"><b>② 光线</b><span id="ckLight">—</span><i class="dot" id="ckLightDot"></i></div>
+    <div class="row2"><b>③ 看到的手</b><span id="ckHands">0 只</span><i class="dot" id="ckHandDot"></i></div>
+    <ol id="ckGest"></ol>
+    <div class="tip" id="ckTip">正在看…</div>
+    <div class="btns">
+      <button id="ckGo">就这么开始</button>
+      <button id="ckManual">改用键鼠</button>
+      <button id="ckLoosen">再放宽一档</button>
+      <button id="ckClose">关掉</button>
+    </div>
+  </div>
+
+  <div id="keys">
+    <button class="panelx" data-x-close="1" title="关闭（点空白、按任意键也能关）">✕</button>
+    <h2>键 鼠 · 一 览</h2>
+    <div class="sub2">没有摄像头也能整出戏：鼠标走影，按住左/右键出手势；按 <kbd>?</kbd> 或点右上角「键鼠」随时开关。</div>
+    <div class="cols">
+      <section><b>做 手 势</b>
+        <div class="row2"><b>走影</b><span>移动鼠标 / <kbd>W A S D</kbd>；<kbd>↑↓</kbd> 离灯远近</span></div>
+        <div class="row2"><b>捏合</b><span>按住<kbd>左键</kbd> 或 <kbd>E</kbd> · 挑签亮相</span></div>
+        <div class="row2"><b>攥拳</b><span>按住<kbd>右键</kbd> 或 <kbd>Q</kbd> · 定住 / 敲鼓</span></div>
+        <div class="row2"><b>对戏</b><span>按住<kbd>中键</kbd> 或 <kbd>G</kbd> · 两手靠近</span></div>
+        <div class="row2"><b>横扫</b><span>鼠标快速横扫 或 <kbd>R</kbd> · 换势甩翎</span></div>
+        <div class="row2"><b>上挑</b><span>抬手往上 或 <kbd>I</kbd> · 水袖 / 折柳</span></div>
+        <div class="row2"><b>下砸</b><span>手往下砸 或 <kbd>K</kbd> · 踢腿</span></div>
+        <div class="row2"><b>翻手</b><span>把手翻过来 或 <kbd>X</kbd> · 换面</span></div>
+        <div class="row2"><b>翻身</b><span>双手上抬 或 <kbd>J</kbd> · 武打身段</span></div>
+      </section>
+      <section><b>演 戏</b>
+        <div class="row2"><b>起灯</b><span><kbd>空格</kbd> 按住；闹台 / 叫好打赏也吃它</span></div>
+        <div class="row2"><b>再演</b><span><kbd>Y</kbd> 同一出从头来</span></div>
+        <div class="row2"><b>两签</b><span><kbd>F</kbd> 两只手共操；<kbd>U</kbd> 提臂 / <kbd>O</kbd> 放臂</span></div>
+        <div class="row2"><b>加人</b><span><kbd>T</kbd> 加一位影人（最多四人同台）</span></div>
+        <div class="row2"><b>行当</b><span><kbd>1</kbd>–<kbd>4</kbd> 直接点名 生旦净丑</span></div>
+        <div class="row2"><b>模式</b><span><kbd>Tab</kbd> 引导 / 自由</span></div>
+      </section>
+      <section><b>台 面</b>
+        <div class="row2"><b>文场</b><span><kbd>M</kbd> 背景音乐开 / 关</span></div>
+        <div class="row2"><b>点板</b><span><kbd>B</kbd> 七紧八慢九消停</span></div>
+        <div class="row2"><b>手感</b><span><kbd>V</kbd> 宽松 / 标准 / 严格</span></div>
+        <div class="row2"><b>换装</b><span><kbd>H</kbd> 头茬 · <kbd>P</kbd> 皮料 · <kbd>N</kbd> 流派</span></div>
+        <div class="row2"><b>皮影志</b><span><kbd>Z</kbd> 戏考图鉴</span></div>
+        <div class="row2"><b>收手</b><span><kbd>Esc</kbd> 手离台 / 关这一页</span></div>
+      </section>
+    </div>
+    <div class="ft">鼠标位置就是手的位置，手悬在画面中间那一带就等于伸到灯前。滚轮：两签时提 / 放右手；触屏按住不动 = 捏合。</div>
+    <button id="keysHintToggle">影布两旁提示：显示中（点此隐藏）</button>
+    <button id="keysClose">合 上</button>
+  </div>
+
+  <script type="module" src="./app.js?v=12"></script>
+</body>
+</html>
