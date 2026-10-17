@@ -1929,6 +1929,8 @@ function bindManualInput() {
       }
       closeMenus(); e.preventDefault(); return;
     }
+    if (e.key === 'Home') { if (down) { e.preventDefault(); goHome(); } return; }   // 回首页（任何页面都能退）
+    if (!started) return;                  // 开场幕（首页）上只认按钮，键盘不碰底下的戏
     if (e.key === 'z' || e.key === 'Z') { if (down) { show.view = !show.view; syncHints(); } return; }
     if (e.key === 'm' || e.key === 'M') { if (down) setMusic(); return; }   // 文场开/关（任何模式都能按）
     if (e.key === 'Tab') { if (down) { e.preventDefault(); setUIMode(uiMode === 'guide' ? 'free' : 'guide'); } return; }   // 引导 / 自由
@@ -2409,7 +2411,7 @@ async function camOn() {
   enter('camera');
   $('#hintMode').textContent = '正在启动摄像头…';
   try {
-    await HT.init();
+    if (!HT.landmarker) await HT.init();      // 回首页会关掉相机；再进来时优先复用已加载的模型
     await HT.camera();
     $('#hintMode').textContent = '';
     camT0 = 0; ckAutoDone = false;
@@ -2420,6 +2422,43 @@ async function camOn() {
     return false;
   }
 }
+
+/* ---- 回首页：从演出 / 闯关 / 新手 / 任何面板都能退回开场幕，而不是把整个程序关掉 ----
+   停的只是"这一轮"：台本、关卡、点板、录制、相机、手都收起来；存档、设置、皮影志一律不动。
+   Home 键、右上角「⌂ 首页」、每个面板底下的「回首页」都走这一条。 */
+function goHome() {
+  closeMenus();
+  ckShow(false);
+  show.view = false;
+  if (lvOn) stopLevel();
+  try { if (PB.running) PB.stop(); } catch (e) {}
+  try { if (beat.running) beatToggle(false); } catch (e) {}
+  try { if (Rec.on) Rec.stop(); } catch (e) {}
+  /* 相机要真停：不然浏览器摄像头灯一直亮着，再进也可能抢不到设备 */
+  if (HT.video) {
+    try { if (HT.video.srcObject) HT.video.srcObject.getTracks().forEach(t => t.stop()); } catch (e) {}
+    HT.video = null;
+  }
+  HT.feed([], performance.now());
+  MAN.away = true; MAN.extra = 0; MAN.meet = false;
+  MAN.mouse.pinch = MAN.mouse.fist = false; MAN.keys.clear();
+  active = []; puppets.forEach(p => { p.appear = 0; });
+  curPlay = null;
+  show.cue = null; show.seal = null; show.rate = null; show.bigNote = null;
+  show.toast = null; show.hint = ''; show.helped = 0;
+  show.state = 'wake'; warmHits = 0; tipHits = 0;
+  started = false;                       // 输入与渲染都停，画布停在最后一帧，开场幕自己亮
+  $('#hintMode').textContent = '';
+  $('#veil').classList.remove('gone');
+  renderSteps(); refreshPlay(); refreshZhi();
+  try { musicFollow(); } catch (e) {}    // state 已不是 play → 文场淡出
+  syncHints();
+}
+$('#btnHome').onclick = e => { goHome(); e.currentTarget.blur(); };
+$('#playsHome').onclick = e => { goHome(); e.currentTarget.blur(); };
+$('#levelsHome').onclick = e => { goHome(); e.currentTarget.blur(); };
+$('#ckHome').onclick = e => { goHome(); e.currentTarget.blur(); };
+$('#keysHome').onclick = e => { goHome(); e.currentTarget.blur(); };
 $('#btnStart').onclick = () => camOn();
 $('#btnCheck').onclick = async () => { ckShow(true); await camOn(); };
 $('#ckGo').onclick = async () => { ckShow(false); if (!HT.video) await camOn(); };

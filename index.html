@@ -201,6 +201,9 @@
     line-height:1;font-family:inherit;font-size:13px;border-radius:6px;cursor:pointer;
     background:transparent;color:rgba(246,230,196,.45);border:1px solid rgba(232,192,122,.22);transition:.16s}
   .panelx:hover{color:var(--gold);border-color:rgba(232,192,122,.6);background:rgba(232,192,122,.12)}
+  /* 面板底部的「回首页 / 合上」并排 */
+  .homeRow{display:flex;gap:8px;margin-top:16px}
+  .homeRow .close{margin-top:0;flex:1 1 0;width:auto}
   /* ---------- 影布两旁的键鼠提示（可关；跟着幕布的边站） ---------- */
   #hintL,#hintR{position:fixed;z-index:25;top:0;display:none;flex-direction:column;gap:4px;
     padding:9px 10px 8px;border-radius:3px;pointer-events:none;
@@ -297,11 +300,11 @@
   }
   #veil .ver b{color:rgba(232,192,122,.62);font-weight:600}
   /* ---------- 新手模式 / 闯关：面板与入口 ---------- */
-  #veilNovice{
+  #veil #veilNovice{
     border:1px solid rgba(232,192,122,.80);color:#1a1108;background:rgba(232,192,122,.82);
     box-shadow:0 0 26px rgba(232,192,122,.24);font-weight:600;
   }
-  #veilNovice:hover{background:rgba(255,214,140,.95);box-shadow:0 0 34px rgba(232,192,122,.34)}
+  #veil #veilNovice:hover{background:rgba(255,214,140,.95);box-shadow:0 0 34px rgba(232,192,122,.34)}
   /* 关内把侧边步骤栏收起来：闯关走的是自由模式的判定，不给提示（不改成自由模式，两模式照旧） */
   body.lv #steps{opacity:0;visibility:hidden;transform:translateX(14px)}
   /* 闯关面板：沿用戏折子的深底 / 金线 / 楷体标题 */
@@ -348,6 +351,7 @@
     <button id="btnMode">引导模式 <b>Tab</b></button>
     <button id="btnCheck2">自检</button>
     <button id="btnKeys">键鼠 <b>?</b></button>
+    <button id="btnHome" title="回到开场幕（也可以按 Home）">⌂ 首页</button>
     <button id="btnTwo">两签 <b>F</b></button>
     <button id="btnBeat">点板 <b>B</b></button>
     <button id="btnMusic">文场 ♪ <b>M</b></button>
@@ -377,6 +381,7 @@
     <div class="r" data-only="man"><b>加人</b><span><kbd>T</kbd></span></div>
     <div class="r"><b>行当</b><span><kbd>1</kbd>–<kbd>4</kbd></span></div>
     <div class="r"><b>再演</b><span><kbd>Y</kbd></span></div>
+    <div class="r"><b>回首页</b><span><kbd>Home</kbd></span></div>
     <div class="r"><b>文场</b><span><kbd>M</kbd></span></div>
     <div class="r"><b>点板</b><span><kbd>B</kbd></span></div>
     <div class="r"><b>手感</b><span><kbd>V</kbd></span></div>
@@ -420,7 +425,10 @@
       <b>挑</b> I · <b>砸</b> K · <b>翻</b> X · <b>挥</b> R · <b>J</b> 翻身 · <b>F</b> 两签 · <b>B</b> 点板 ·
       <b>H/P/N</b> 换头/皮/流派 · <b>1-4</b> 行当 · <b>?</b> 全部键位 · <b>Z</b> 皮影志
     </div>
-    <button class="close" id="playsClose">合 上</button>
+    <div class="homeRow">
+      <button class="close" id="playsHome">回 首 页</button>
+      <button class="close" id="playsClose">合 上</button>
+    </div>
   </div>
 
   <div id="levels">
@@ -429,7 +437,10 @@
     <p>从「一签定身」到「满台彩」：关名与释义都是皮影行话，由易到难。每关有时限——0 帮衬评「上」，1 次评「中」，两次以上或超时评「下」（超时也算过，不卡人）。过一关开下一关，成绩可以重打，只留最好的那一次。</p>
     <ul></ul>
     <div class="hintk">使的就是台上那几手：张掌 / 捏合 / 攥拳 / 翻手 / 横扫 / 下砸 / 上挑 / 两手靠近。<br>第 10 关自动开「两签共操」、第 11 关自动起「点板」、第 12 关要四个人影同台。</div>
-    <button class="close" id="levelsClose">合 上</button>
+    <div class="homeRow">
+      <button class="close" id="levelsHome">回 首 页</button>
+      <button class="close" id="levelsClose">合 上</button>
+    </div>
   </div>
 
   <div id="lvNext">
@@ -481,6 +492,7 @@
       <button id="ckGo">就这么开始</button>
       <button id="ckManual">改用键鼠</button>
       <button id="ckLoosen">再放宽一档</button>
+      <button id="ckHome">回首页</button>
       <button id="ckClose">关掉</button>
     </div>
   </div>
@@ -507,6 +519,7 @@
         <div class="row2"><b>两签</b><span><kbd>F</kbd> 两只手共操；<kbd>U</kbd> 提臂 / <kbd>O</kbd> 放臂</span></div>
         <div class="row2"><b>加人</b><span><kbd>T</kbd> 加一位影人（最多四人同台）</span></div>
         <div class="row2"><b>行当</b><span><kbd>1</kbd>–<kbd>4</kbd> 直接点名 生旦净丑</span></div>
+        <div class="row2"><b>回首页</b><span><kbd>Home</kbd> 回开场幕（右上角「⌂ 首页」、各面板里的「回首页」同效）</span></div>
         <div class="row2"><b>模式</b><span><kbd>Tab</kbd> 引导 / 自由</span></div>
       </section>
       <section><b>台 面</b>
@@ -520,6 +533,7 @@
     </div>
     <div class="ft">鼠标位置就是手的位置，手悬在画面中间那一带就等于伸到灯前。滚轮：两签时提 / 放右手；触屏按住不动 = 捏合。</div>
     <button id="keysHintToggle">影布两旁提示：显示中（点此隐藏）</button>
+    <button id="keysHome">回 首 页</button>
     <button id="keysClose">合 上</button>
   </div>
 
