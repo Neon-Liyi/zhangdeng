@@ -12,6 +12,13 @@ echo      掌灯 · 手势皮影戏      本地启动
 echo   ============================================
 echo.
 
+rem ---------- 0) 包里自带运行时（解压即能跑，不要求这台电脑装过 Python）----------
+if exist "%~dp0runtime\py\python.exe" (
+  "%~dp0runtime\py\python.exe" -c "import http.server" >nul 2>nul
+  if not errorlevel 1 set "PY=%~dp0runtime\py\python.exe"
+)
+if defined PY goto :gotpy
+
 rem ---------- 1) 找一个真的能跑的 Python（WindowsApps 那个假 python 会被筛掉）----------
 for /d %%d in ("%LOCALAPPDATA%\hermes\tools\python-*") do (
   if exist "%%~fd\python.exe" (
